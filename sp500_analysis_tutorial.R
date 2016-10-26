@@ -72,14 +72,15 @@ get_log_returns <- function(x, return_format = "tibble", period = 'daily', ...) 
 
 
 # Mapping the Functions --------------------------------------------------------
-
+from <- "2007-01-01"
+to   <- today()
 sp_500 <- sp_500 %>%
     mutate(
         stock.prices = map(ticker.symbol, 
                            function(.x) get_stock_prices(.x, 
                                                          return_format = "tibble",
-                                                         from = "2007-01-01",
-                                                         to = "2016-10-23")
+                                                         from = from,
+                                                         to   = to)
         ),
         log.returns  = map(stock.prices, 
                            function(.x) get_log_returns(.x, return_format = "tibble")),
