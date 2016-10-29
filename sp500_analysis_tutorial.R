@@ -5,7 +5,7 @@
 
 # Prerequisites ----------------------------------------------------------------
 library(quantmod)   # get stock prices; useful stock analysis functions
-library(xts)        # working with extensible time series 
+library(xts)        # working with extensible time series
 library(rvest)      # web scraping
 library(tidyverse)  # ggplot2, purrr, dplyr, tidyr, readr, tibble
 library(stringr)    # working with strings
@@ -24,9 +24,9 @@ sp_500 <- read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
     select(`Ticker symbol`, Security, `GICS Sector`, `GICS Sub Industry`) %>%
     as_tibble()
 # Format names
-names(sp_500) <- sp_500 %>% 
-    names() %>% 
-    str_to_lower() %>% 
+names(sp_500) <- sp_500 %>%
+    names() %>%
+    str_to_lower() %>%
     make.names()
 
 
@@ -55,7 +55,7 @@ get_log_returns <- function(x, return_format = "tibble", period = 'daily', ...) 
         x <- xts(x[,-1], order.by = x$Date)
     }
     # Get stock prices
-    log_returns_xts <- periodReturn(x = x, type = 'log', period = period, ...)
+    log_returns_xts <- periodReturn(x = x$Adjusted, type = 'log', period = period, ...)
     # Rename
     names(log_returns_xts) <- "Log.Returns"
     # Return in xts format if tibble is not specified
@@ -76,18 +76,18 @@ from <- "2007-01-01"
 to   <- today()
 sp_500 <- sp_500 %>%
     mutate(
-        stock.prices = map(ticker.symbol, 
-                           function(.x) get_stock_prices(.x, 
+        stock.prices = map(ticker.symbol,
+                           function(.x) get_stock_prices(.x,
                                                          return_format = "tibble",
                                                          from = from,
                                                          to   = to)
         ),
-        log.returns  = map(stock.prices, 
+        log.returns  = map(stock.prices,
                            function(.x) get_log_returns(.x, return_format = "tibble")),
-        mean.log.returns = map_dbl(log.returns, ~ median(.$Log.Returns)),
+        mean.log.returns = map_dbl(log.returns, ~ mean(.$Log.Returns)),
         sd.log.returns   = map_dbl(log.returns, ~ sd(.$Log.Returns)),
         n.trade.days = map_dbl(stock.prices, nrow)
-    ) 
+    )
 
 
 # Visualizing the Results with Plotly ------------------------------------------
@@ -133,13 +133,14 @@ plot_ly(data   = sp_500,
 # Bonus: Computing Correlations ------------------------------------------------
 
 # Filter high performing stocks
-limit <- 20 # Limit for top n performers
+limit <- 30
 sp_500_hp <- sp_500 %>%
     filter(n.trade.days > 1000) %>%
+    filter(sd.log.returns < 0.0315) %>%
     mutate(rank = mean.log.returns %>% desc() %>% min_rank()) %>%
     filter(rank <= limit) %>%
     arrange(rank) %>%
-    select(ticker.symbol, rank, mean.log.returns, log.returns)
+    select(ticker.symbol, rank, mean.log.returns, sd.log.returns, log.returns)
 sp_500_hp
 
 # Unnest high performing stocks
@@ -158,5 +159,5 @@ sp_500_hp_spread
 sp_500_hp_spread %>%
     select(-Date) %>%
     cor() %>%
-    corrplot(order   = "hclust", 
-             addrect = 10)
+    corrplot(order   = "hclust",
+             addrect = 6)
